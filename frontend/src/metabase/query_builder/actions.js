@@ -1215,15 +1215,22 @@ export const viewPreviousObjectDetail = () => {
 }
 
 export const CREATE_ALERT = 'metabase/qb/CREATE_ALERT'
-export const createAlert = (schedule) => {
+export const createAlert = (alert) => {
     return (dispatch, getState) => {
-        const question = getQuestion(getState());
-
-        dispatch(updateQuestion(
-            question.addAlarm(schedule)
-        ))
+        // const question = getQuestion(getState());
+        //
+        // dispatch(updateQuestion(
+        //     question.addAlarm(alert)
+        // ))
 
         dispatch.action(CREATE_ALERT)
+    }
+}
+
+export const UPDATE_ALERT = 'metabase/qb/UPDATE_ALERT'
+export const updateAlert = (alert) => {
+    return (dispatch, getState) => {
+        dispatch.action(UPDATE_ALERT)
     }
 }
 
