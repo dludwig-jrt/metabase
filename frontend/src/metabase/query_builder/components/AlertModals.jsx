@@ -4,6 +4,7 @@ import SchedulePicker from "metabase/components/SchedulePicker";
 import { connect } from "react-redux";
 import { createAlert, updateAlert } from "metabase/query_builder/actions";
 import ModalContent from "metabase/components/ModalContent";
+import { getUserIsAdmin } from "metabase/selectors/user";
 
 @connect(null, { createAlert })
 export class CreateAlertModalContent extends Component {
@@ -14,11 +15,23 @@ export class CreateAlertModalContent extends Component {
     }
 
     state = {
-        hasSeenEducationalScreen: false
+        // the default configuration for a new alert
+        alert: {
+            schedule: {
+                schedule_day: "mon",
+                schedule_frame: null,
+                schedule_hour: 0,
+                schedule_type: "daily"
+            }
+        },
+        hasSeenEducationalScreen: true
     }
 
-    onCreateAlert = async (alert) => {
+    onAlertChange = (alert) => this.setState({ alert })
+
+    onCreateAlert = async () => {
         const { createAlert, onClose } = this.props
+        const { alert } = this.state
         await createAlert(alert)
         // should close be triggered manually like this
         // but the creation notification would appear automatically ...?
@@ -34,19 +47,31 @@ export class CreateAlertModalContent extends Component {
 
     render() {
         const { onClose } = this.props
+        const { alert } = this.state
 
         if (!this.state.hasSeenEducationalScreen) {
-            return <AlertEducationalScreen onProceed={this.proceedFromEducationalScreen} />
+            return (
+                <ModalContent onClose={onClose}>
+                    <AlertEducationalScreen onProceed={this.proceedFromEducationalScreen} />
+                </ModalContent>
+            )
         }
 
+        // TODO: Remove PulseEdit css hack
         return (
             <ModalContent
-                title={<AlertModalTitle text="Let's set up your alert" />}
                 onClose={onClose}
             >
-                <AlertEditForm onDone={this.onCreateAlert} />
-                <Button onClick={onClose}>Cancel</Button>
-                <Button primary onClick={this.onCreateAlert}>Done</Button>
+                <div className="PulseEdit ml-auto mr-auto" style={{maxWidth: "550px"}}>
+                    <AlertModalTitle text="Let's set up your alert" />
+                    <AlertEditForm
+                        alert={alert}
+                        onAlertChange={this.onAlertChange}
+                        onDone={this.onCreateAlert}
+                    />
+                    <Button onClick={onClose}>Cancel</Button>
+                    <Button primary onClick={this.onCreateAlert}>Done</Button>
+                </div>
             </ModalContent>
         )
     }
@@ -61,9 +86,11 @@ export class AlertEducationalScreen extends Component {
         const { onProceed } = this.props;
 
         return (
-            <div className="pt2 ml-auto mr-auto">
-                <h3>The wide world of alerts</h3>
-                <p>There are a few different kinds of alerts you can get</p>
+            <div className="pt2 ml-auto mr-auto text-centered">
+                <div className="pt4">
+                    <h1>The wide world of alerts</h1>
+                    <h2>There are a few different kinds of alerts you can get</h2>
+                </div>
                 <p>[ the educational image comes here ]</p>
                 <Button primary onClick={onProceed}>Set up an alert</Button>
             </div>
@@ -79,7 +106,7 @@ export class UpdateAlertModalContent extends Component {
     // contains the deletion button
     // ModalContent, parent uses ModalWithTrigger
 
-    onUpdateAlert(alert) {
+    onUpdateAlert = (alert) => {
         const { updateAlert, onClose } = this.props
 
         updateAlert(alert)
@@ -95,7 +122,7 @@ export class UpdateAlertModalContent extends Component {
                 onClose={onClose}
             >
                 <AlertEditForm onDone={this.onCreateAlert} />
-                <Button onClick={onClose}>Cancel</Button>
+                <Button className="mr2" onClick={onClose}>Cancel</Button>
                 <Button primary onClick={this.onUpdateAlert}>Save changes</Button>
             </ModalContent>
         )
@@ -103,42 +130,79 @@ export class UpdateAlertModalContent extends Component {
 }
 
 const AlertModalTitle = ({ text }) =>
-    <div>
+    <div className="ml-auto mr-auto mt2 mb4 text-centered">
         <p>[edit alert icon comes here]</p>
-        { text }
+        <h2>{ text }</h2>
     </div>
 
+@connect((state) => ({ isAdmin: getUserIsAdmin(state) }), null)
 export class AlertEditForm extends Component {
-    // contains the schedule selector and if admin, then email/slack options
-
-    state = {
-        schedule: {
-            schedule_day: "mon",
-            schedule_frame: null,
-            schedule_hour: 0,
-            schedule_type: "daily"
-        }
+    props: {
+        alert: any,
+        onAlertChange: (any) => void,
+        isAdmin: boolean
     }
 
-    setSchedule = (schedule) => {
-        this.setState({ schedule })
+    onScheduleChange = (schedule) => {
+        const { alert, onAlertChange } = this.props;
+        onAlertChange({ ...alert, schedule })
     }
 
     render() {
-        const { schedule } = this.state;
+        const { alert, isAdmin } = this.props
 
         return (
             <div>
-                <h3>How often should we check?</h3>
-                <p>By default, we’ll check this question for results at the start of every day, at 12:00 AM.</p>
-                <SchedulePicker
-                    schedule={schedule}
-                    scheduleOptions={["hourly", "daily"]}
-                    onScheduleChange={this.setSchedule}
-                    textBeforeInterval="Scan"
+                <AlertEditSchedule
+                    schedule={alert.schedule}
+                    onScheduleChange={this.onScheduleChange}
                 />
+                { isAdmin && <AlertEditChannels /> }
             </div>
         )
     }
 }
 
+export class AlertEditSchedule extends Component {
+    render() {
+        const { schedule } = this.props;
+
+        return (
+            <div>
+                <h3>How often should we check for results?</h3>
+
+                <div className="bordered rounded mb2">
+                    <RawDataAlertTip />
+                    <div className="p3 bg-grey-0">
+                        <SchedulePicker
+                            schedule={schedule}
+                            scheduleOptions={["hourly", "daily"]}
+                            onScheduleChange={this.props.onScheduleChange}
+                            textBeforeInterval="Check"
+                        />
+                    </div>
+                </div>
+            </div>
+        )
+    }
+}
+
+export class AlertEditChannels extends Component {
+    render() {
+        return (
+            <div>
+                <h3>Where do you want to send these alerts?</h3>
+                <div className="bordered rounded mb2">
+                    <div className="p3 bg-grey-0">
+                        [channels come here, pretty much replicating the pulse channels form or even reusing a generalized version of PulseEditChannels]
+                    </div>
+                </div>
+            </div>
+        )
+    }
+}
+
+const RawDataAlertTip = () =>
+    <div className="border-row-divider p3">
+        <b>Tip:</b> This kind of alert is most useful when your saved question doesn’t <em>usually</em> return any results, but you want to know when it does.
+    </div>
