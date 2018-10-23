@@ -136,7 +136,7 @@
 (defn- string-length-fn [field-key]
   (hsql/call :length field-key))
 
-(def ^:private db2-date-formatter (driver/create-db-time-formatter "yyyy-MM-dd HH:mm:ss.SSS zzz"))
+(def ^:private db2-date-formatters (driver/create-db-time-formatters "yyyy-MM-dd HH:mm:ss.SSS zzz"))
 (def ^:private db2-db-time-query "SELECT CURRENT TIMESTAMP FROM SYSIBM.SYSDUMMY1;")
 (def ^:private ^:const now (hsql/raw "current timestamp"))
 
@@ -214,7 +214,7 @@
                                                           :display-name "Database password"
                                                           :type         :password
                                                           :placeholder  "*******"}]))
-                         :current-db-time (driver/make-current-db-time-fn db2-date-formatter db2-db-time-query)})
+                         :current-db-time (driver/make-current-db-time-fn db2-date-formatters db2-db-time-query)})
 
                  sql/ISQLDriver
                  (merge (sql/ISQLDriverDefaultsMixin)
